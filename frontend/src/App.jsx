@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import {
   LoadState,
@@ -22,7 +22,10 @@ function App() {
   const [state, setState] = useState(emptyState);
   const [error, setError] = useState("");
   const [menu, setMenu] = useState(null);
+  const [renameTarget, setRenameTarget] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
   const [busyAction, setBusyAction] = useState("");
+  const renameInputRef = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -55,6 +58,39 @@ function App() {
     return () => {
       window.removeEventListener("click", close);
       window.removeEventListener("blur", close);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (renameTarget) {
+      requestAnimationFrame(() => {
+        renameInputRef.current?.focus();
+        renameInputRef.current?.select();
+      });
+    }
+  }, [renameTarget]);
+
+  useEffect(() => {
+    const scrollProjectStack = (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const list = target?.closest(".project-stack");
+      if (!list) return;
+
+      const maxScroll = list.scrollHeight - list.clientHeight;
+      if (maxScroll <= 0 || event.deltaY === 0) return;
+
+      const delta =
+        event.deltaMode === 1 ? event.deltaY * 16 : event.deltaMode === 2 ? event.deltaY * list.clientHeight : event.deltaY;
+      const nextTop = Math.max(0, Math.min(maxScroll, list.scrollTop + delta));
+      if (nextTop !== list.scrollTop) {
+        event.preventDefault();
+        list.scrollTop = nextTop;
+      }
+    };
+
+    window.addEventListener("wheel", scrollProjectStack, { capture: true, passive: false });
+    return () => {
+      window.removeEventListener("wheel", scrollProjectStack, { capture: true });
     };
   }, []);
 
@@ -97,10 +133,23 @@ function App() {
   const removeProject = (project) => run("remove", () => RemoveProject(project.id));
   const openTerminal = (worktree) => run("terminal", () => OpenTerminal(worktree.path).then(() => null));
 
-  const renameWorktree = (worktree) => {
+  const openRename = (worktree) => {
     setMenu(null);
-    const nextName = window.prompt("自定义显示名称", worktree.displayName || worktree.name || "");
-    if (nextName === null) return;
+    setRenameTarget(worktree);
+    setRenameValue(worktree.displayName || worktree.name || "");
+  };
+
+  const closeRename = () => {
+    setRenameTarget(null);
+    setRenameValue("");
+  };
+
+  const submitRename = (event) => {
+    event.preventDefault();
+    if (!renameTarget) return;
+    const worktree = renameTarget;
+    const nextName = renameValue;
+    closeRename();
     run("rename", () => RenameWorktree(worktree.path, nextName));
   };
 
@@ -170,8 +219,29 @@ function App() {
 
       {menu ? (
         <div className="context-menu" style={{ left: menu.x, top: menu.y }} onClick={(event) => event.stopPropagation()}>
-          {menu.worktree ? <button onClick={() => renameWorktree(menu.worktree)}>自定义名称</button> : null}
+          {menu.worktree ? <button onClick={() => openRename(menu.worktree)}>自定义名称</button> : null}
           {menu.project ? <button onClick={() => { setMenu(null); removeProject(menu.project); }}>移除项目</button> : null}
+        </div>
+      ) : null}
+
+      {renameTarget ? (
+        <div className="rename-backdrop" onClick={closeRename}>
+          <form className="rename-dialog" onSubmit={submitRename} onClick={(event) => event.stopPropagation()}>
+            <label htmlFor="rename-input">自定义显示名称</label>
+            <input
+              id="rename-input"
+              ref={renameInputRef}
+              value={renameValue}
+              onChange={(event) => setRenameValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") closeRename();
+              }}
+            />
+            <div className="rename-actions">
+              <button type="button" onClick={closeRename}>取消</button>
+              <button type="submit" disabled={busyAction === "rename"}>保存</button>
+            </div>
+          </form>
         </div>
       ) : null}
     </div>
