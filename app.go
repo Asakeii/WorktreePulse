@@ -153,6 +153,7 @@ func (a *App) RenameWorktree(path, name string) (*State, error) {
 		return nil, err
 	}
 	a.reloadConfigOnly()
+	a.applyWorktreeNames()
 	a.startRefresh()
 	return a.CurrentState(), nil
 }
@@ -373,6 +374,28 @@ func syncProjectsToConfig(existing []ProjectVM, cfg Config) []ProjectVM {
 		})
 	}
 	return projects
+}
+
+func (a *App) applyWorktreeNames() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.state == nil {
+		return
+	}
+	names := a.state.Config.WorktreeName
+	for pi := range a.state.Projects {
+		for wi := range a.state.Projects[pi].Worktrees {
+			worktree := &a.state.Projects[pi].Worktrees[wi]
+			if displayName := strings.TrimSpace(names[worktree.Path]); displayName != "" {
+				worktree.DisplayName = displayName
+			} else {
+				worktree.DisplayName = worktree.Name
+			}
+		}
+		sort.Slice(a.state.Projects[pi].Worktrees, func(i, j int) bool {
+			return a.state.Projects[pi].Worktrees[i].DisplayName < a.state.Projects[pi].Worktrees[j].DisplayName
+		})
+	}
 }
 
 func cloneState(state *State, scanning bool) *State {

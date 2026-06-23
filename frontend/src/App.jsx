@@ -98,6 +98,7 @@ function App() {
   const openTerminal = (worktree) => run("terminal", () => OpenTerminal(worktree.path).then(() => null));
 
   const renameWorktree = (worktree) => {
+    setMenu(null);
     const nextName = window.prompt("自定义显示名称", worktree.displayName || worktree.name || "");
     if (nextName === null) return;
     run("rename", () => RenameWorktree(worktree.path, nextName));
@@ -170,7 +171,7 @@ function App() {
       {menu ? (
         <div className="context-menu" style={{ left: menu.x, top: menu.y }} onClick={(event) => event.stopPropagation()}>
           {menu.worktree ? <button onClick={() => renameWorktree(menu.worktree)}>自定义名称</button> : null}
-          {menu.project ? <button onClick={() => removeProject(menu.project)}>移除项目</button> : null}
+          {menu.project ? <button onClick={() => { setMenu(null); removeProject(menu.project); }}>移除项目</button> : null}
         </div>
       ) : null}
     </div>
