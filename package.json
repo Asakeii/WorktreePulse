@@ -1,0 +1,11 @@
+{
+  "name": "worktree-pulse",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "start": "/Users/gd-npc-1029/go/bin/wails dev",
+    "dev": "/Users/gd-npc-1029/go/bin/wails dev",
+    "build": "/Users/gd-npc-1029/go/bin/wails build",
+    "test": "go test ./... && npm --prefix frontend run build"
+  }
+}
